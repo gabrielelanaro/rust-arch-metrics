@@ -9,33 +9,100 @@ mod report;
 
 use models::{AnalysisResult, OutputFormat, StructInfo};
 
+const AFTER_HELP: &str = "\nMETRICS EXPLAINED:
+    LCOM (Lack of Cohesion in Methods) - Range: 0.0 to 1.0 (lower is better)
+        Measures how closely related methods are within a struct.
+        • 0.0    = Perfect cohesion - all methods use all fields
+        • 0.0-0.5 = Good cohesion - methods work on related field subsets
+        • 0.5-0.8 = Low cohesion - may indicate multiple responsibilities
+        • 1.0    = No cohesion - methods share no fields (consider splitting)
+
+    CBO (Coupling Between Objects) - Range: 0+ (lower is better)
+        Counts dependencies on other structs defined in the analyzed codebase.
+        Does not count external types (String, Vec, etc.) or primitives.
+        • 0-2  = Low coupling, easy to test and reuse
+        • 3-5  = Moderate coupling, acceptable
+        • 6+   = High coupling, difficult to maintain
+
+    WMC (Weighted Methods per Class) - Range: 0+ (lower is better)
+        Sum of cyclomatic complexities across all methods.
+        Complexity is 1 + number of branches (if, match, while, for, loop).
+        • 0-10  = Simple, easy to understand
+        • 11-20 = Moderate complexity
+        • 21-40 = Complex, consider refactoring
+        • 40+   = God class, needs decomposition
+
+EXAMPLES:
+    # Analyze current project with table output
+    rust-arch-metrics src/
+
+    # Export metrics for further processing
+    rust-arch-metrics src/ --format json --output metrics.json
+
+    # Import into spreadsheet
+    rust-arch-metrics src/ --format csv --output metrics.csv
+
+    # Exclude test files
+    rust-arch-metrics src/ --exclude test
+
+    # Focus on high-complexity structs
+    rust-arch-metrics src/ --format json | jq '.[] | select(.wmc > 40)'
+
+    # Debug parsing of a specific struct
+    rust-arch-metrics src/ --debug-struct MyStruct
+
+SEE ALSO:
+    https://en.wikipedia.org/wiki/Lack_of_cohesion_in_methods
+    https://en.wikipedia.org/wiki/Coupling_(computer_programming)";
+
 #[derive(Parser)]
 #[command(name = "rust-arch-metrics")]
-#[command(about = "CLI tool for measuring architectural metrics in Rust code")]
-#[command(version)]
+#[command(about = "Calculate architectural metrics (LCOM, CBO, WMC) for Rust code")]
+#[command(
+    long_about = "Analyzes Rust source files and calculates three key object-oriented metrics:
+\n\
+  • LCOM - Lack of Cohesion in Methods (how related are the methods)\n\
+  • CBO  - Coupling Between Objects (dependencies on other structs)\n\
+  • WMC  - Weighted Methods per Class (cyclomatic complexity sum)\n\
+\n\
+These metrics help identify architectural issues like God Classes, Feature Envy, \
+and low cohesion that make code harder to maintain.",
+    after_help = AFTER_HELP,
+    version
+)]
 struct Cli {
-    /// Path to the Rust project or file to analyze
+    /// Path to the Rust project directory or single .rs file to analyze
     #[arg(value_name = "PATH")]
     path: String,
 
-    /// Output format: table, json, csv
-    #[arg(short, long, value_name = "FORMAT", default_value = "table")]
+    /// Output format
+    #[arg(short, long, value_name = "FORMAT", default_value = "table",
+          help = "Output format: table, json, or csv\n\
+                  • table - Human-readable aligned columns (default)\n\
+                  • json  - Machine-readable with full precision\n\
+                  • csv   - Spreadsheet-compatible")]
     format: String,
 
-    /// Comma-separated metrics to calculate: lcom,cbo,wmc or "all"
-    #[arg(short, long, value_name = "METRICS", default_value = "all")]
+    /// Comma-separated list of metrics to include
+    #[arg(short, long, value_name = "METRICS", default_value = "all",
+          help = "Metrics to calculate: lcom,cbo,wmc or all (default)")]
     metrics: String,
 
-    /// Glob pattern to exclude files
-    #[arg(long, value_name = "PATTERN")]
+    /// Pattern to exclude files/directories from analysis
+    #[arg(long, value_name = "PATTERN",
+          help = "Skip files/directories matching this substring\n\
+                  Example: --exclude test (skips files with 'test' in name)")]
     exclude: Option<String>,
 
-    /// Output file (default: stdout)
-    #[arg(short, long, value_name = "FILE")]
+    /// Output file path (default: print to stdout)
+    #[arg(short, long, value_name = "FILE",
+          help = "Write output to file instead of stdout")]
     output: Option<String>,
 
-    /// Dump raw parsed struct data for debugging
-    #[arg(long, value_name = "STRUCT_NAME")]
+    /// Debug a specific struct's parsed data
+    #[arg(long, value_name = "STRUCT_NAME",
+          help = "Print detailed parsing info for a struct\n\
+                  Shows fields, methods, field access patterns, and traits")]
     debug_struct: Option<String>,
 }
 

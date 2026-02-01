@@ -69,7 +69,6 @@ impl<'ast> Visit<'ast> for StructVisitor {
 }
 
 fn analyze_method(method: &ImplItemFn, struct_info: &StructInfo) -> MethodInfo {
-    let name = method.sig.ident.to_string();
     let mut fields_accessed = HashSet::new();
     let mut external_types = HashSet::new();
 
@@ -80,7 +79,6 @@ fn analyze_method(method: &ImplItemFn, struct_info: &StructInfo) -> MethodInfo {
     let cyclomatic_complexity = calculate_cyclomatic_complexity(&method.block);
 
     MethodInfo {
-        name,
         fields_accessed: fields_accessed.into_iter().collect(),
         cyclomatic_complexity,
     }
@@ -259,40 +257,4 @@ pub fn parse_file(content: &str) -> Result<Vec<StructInfo>, syn::Error> {
     let mut visitor = StructVisitor::new();
     visitor.visit_file(&file);
     Ok(visitor.structs)
-}
-
-pub fn extract_external_types(content: &str) -> Result<HashSet<String>, syn::Error> {
-    let file: File = syn::parse_str(content)?;
-    let mut types = HashSet::new();
-
-    for item in &file.items {
-        match item {
-            syn::Item::Use(use_item) => {
-                extract_types_from_use(&use_item.tree, &mut types);
-            }
-            _ => {}
-        }
-    }
-
-    Ok(types)
-}
-
-fn extract_types_from_use(tree: &syn::UseTree, types: &mut HashSet<String>) {
-    match tree {
-        syn::UseTree::Path(path) => {
-            extract_types_from_use(&path.tree, types);
-        }
-        syn::UseTree::Name(name) => {
-            types.insert(name.ident.to_string());
-        }
-        syn::UseTree::Rename(rename) => {
-            types.insert(rename.rename.to_string());
-        }
-        syn::UseTree::Glob(_) => {}
-        syn::UseTree::Group(group) => {
-            for item in &group.items {
-                extract_types_from_use(item, types);
-            }
-        }
-    }
 }

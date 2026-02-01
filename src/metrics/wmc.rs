@@ -47,17 +47,14 @@ mod tests {
             ],
             methods: vec![
                 MethodInfo {
-                    name: "get_name".to_string(),
                     fields_accessed: vec!["name".to_string()],
                     cyclomatic_complexity: 1,
                 },
                 MethodInfo {
-                    name: "set_name".to_string(),
                     fields_accessed: vec!["name".to_string()],
                     cyclomatic_complexity: 1,
                 },
                 MethodInfo {
-                    name: "complex_method".to_string(),
                     fields_accessed: vec![],
                     cyclomatic_complexity: 3,
                 },

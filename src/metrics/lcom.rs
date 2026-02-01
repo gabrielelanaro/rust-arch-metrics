@@ -53,46 +53,6 @@ pub fn calculate(struct_info: &StructInfo) -> f64 {
     lcom.clamp(0.0, 1.0)
 }
 
-/// Alternative LCOM calculation using the original Chidamber & Kemerer formula
-/// LCOM = |P| - |Q| if |P| > |Q|, otherwise 0
-/// where P = pairs of methods that don't share fields
-///       Q = pairs of methods that do share fields
-pub fn calculate_ck(struct_info: &StructInfo) -> usize {
-    let method_count = struct_info.methods.len();
-
-    if method_count <= 1 {
-        return 0;
-    }
-
-    let mut p = 0; // Pairs that don't share fields
-    let mut q = 0; // Pairs that do share fields
-
-    for i in 0..method_count {
-        for j in (i + 1)..method_count {
-            let m1 = &struct_info.methods[i];
-            let m2 = &struct_info.methods[j];
-
-            // Check if they share any fields
-            let shares_fields = m1
-                .fields_accessed
-                .iter()
-                .any(|f| m2.fields_accessed.contains(f));
-
-            if shares_fields {
-                q += 1;
-            } else {
-                p += 1;
-            }
-        }
-    }
-
-    if p > q {
-        p - q
-    } else {
-        0
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -111,12 +71,10 @@ mod tests {
             ],
             methods: vec![
                 MethodInfo {
-                    name: "get_name".to_string(),
                     fields_accessed: vec!["name".to_string()],
                     cyclomatic_complexity: 1,
                 },
                 MethodInfo {
-                    name: "set_name".to_string(),
                     fields_accessed: vec!["name".to_string()],
                     cyclomatic_complexity: 1,
                 },
@@ -146,12 +104,10 @@ mod tests {
             ],
             methods: vec![
                 MethodInfo {
-                    name: "get_name".to_string(),
                     fields_accessed: vec!["name".to_string()],
                     cyclomatic_complexity: 1,
                 },
                 MethodInfo {
-                    name: "get_email".to_string(),
                     fields_accessed: vec!["email".to_string()],
                     cyclomatic_complexity: 1,
                 },
@@ -174,38 +130,5 @@ mod tests {
         };
 
         assert_eq!(calculate(&struct_info), 0.0);
-    }
-
-    #[test]
-    fn test_lcom_ck_version() {
-        let struct_info = StructInfo {
-            name: "User".to_string(),
-            fields: vec![
-                FieldInfo {
-                    name: "name".to_string(),
-                    ty: "String".to_string(),
-                },
-                FieldInfo {
-                    name: "email".to_string(),
-                    ty: "String".to_string(),
-                },
-            ],
-            methods: vec![
-                MethodInfo {
-                    name: "get_name".to_string(),
-                    fields_accessed: vec!["name".to_string()],
-                    cyclomatic_complexity: 1,
-                },
-                MethodInfo {
-                    name: "get_email".to_string(),
-                    fields_accessed: vec!["email".to_string()],
-                    cyclomatic_complexity: 1,
-                },
-            ],
-            external_types: vec![],
-        };
-
-        // Both methods access different fields, so P = 1, Q = 0, LCOM = 1
-        assert_eq!(calculate_ck(&struct_info), 1);
     }
 }

@@ -62,7 +62,7 @@ fn extract_type_name(ty: &str) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{FieldInfo, MethodInfo};
+    use crate::models::FieldInfo;
 
     #[test]
     fn test_cbo_no_coupling() {

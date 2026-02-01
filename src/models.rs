@@ -8,7 +8,6 @@ pub struct FieldInfo {
 /// Represents information about a method
 #[derive(Debug, Clone)]
 pub struct MethodInfo {
-    pub name: String,
     pub fields_accessed: Vec<String>,
     pub cyclomatic_complexity: usize,
 }

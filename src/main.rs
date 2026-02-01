@@ -33,6 +33,10 @@ struct Cli {
     /// Output file (default: stdout)
     #[arg(short, long, value_name = "FILE")]
     output: Option<String>,
+
+    /// Dump raw parsed struct data for debugging
+    #[arg(long, value_name = "STRUCT_NAME")]
+    debug_struct: Option<String>,
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -67,6 +71,27 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     if all_structs.is_empty() {
         eprintln!("No structs found in the analyzed files.");
         std::process::exit(0);
+    }
+
+    // Handle debug output if requested
+    if let Some(debug_name) = cli.debug_struct {
+        for s in &all_structs {
+            if s.name == debug_name {
+                println!("=== Debug: {} ===", s.name);
+                println!("Fields ({}):", s.fields.len());
+                for f in &s.fields {
+                    println!("  - {}: {}", f.name, f.ty);
+                }
+                println!("\nMethods ({}):", s.methods.len());
+                for (i, m) in s.methods.iter().enumerate() {
+                    println!("  Method {}: fields_accessed={:?}, complexity={}",
+                        i, m.fields_accessed, m.cyclomatic_complexity);
+                }
+                println!("\nExternal types: {:?}", s.external_types);
+                println!("Traits implemented: {:?}", s.traits);
+            }
+        }
+        return Ok(());
     }
 
     // Calculate metrics for each struct

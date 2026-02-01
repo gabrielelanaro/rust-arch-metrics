@@ -6,6 +6,11 @@ use crate::models::StructInfo;
 /// is coupled to (depends on). Higher CBO indicates more dependencies
 /// and potentially harder to maintain code.
 ///
+/// Coupling includes:
+/// - Field types that are other structs
+/// - Trait implementations
+/// - Generic type parameters with trait bounds
+///
 /// # Arguments
 /// * `struct_info` - The struct to analyze
 /// * `all_structs` - All structs in the codebase for reference
@@ -25,38 +30,64 @@ pub fn calculate(struct_info: &StructInfo, all_structs: &[StructInfo]) -> usize 
 
     // Collect types from field types
     for field in &struct_info.fields {
-        if let Some(type_name) = extract_type_name(&field.ty) {
+        // Check the base type and all generic type parameters
+        let type_names = extract_all_types(&field.ty);
+        for type_name in type_names {
             if all_structs.iter().any(|s| s.name == type_name) && type_name != struct_info.name {
                 coupled_types.insert(type_name);
             }
         }
     }
 
+    // Count trait implementations as coupling
+    for trait_name in &struct_info.traits {
+        coupled_types.insert(trait_name.clone());
+    }
+
     coupled_types.len()
 }
 
-/// Extract the base type name from a type string
-/// e.g., "String" from "String", "Vec<String>" from "Vec < String >"
-fn extract_type_name(ty: &str) -> Option<String> {
+/// Extract all type names from a type string
+/// e.g., ["String"] from "String", ["Vec", "Item"] from "Vec < Item >"
+fn extract_all_types(ty: &str) -> Vec<String> {
+    let mut types = Vec::new();
     let ty = ty.trim();
-
-    // Handle generic types like Vec<T>, Option<T>, etc.
-    if let Some(start) = ty.find('<') {
-        let base = &ty[..start].trim();
-        return Some(base.to_string());
-    }
 
     // Handle reference types like &T, &mut T
     if ty.starts_with('&') {
         let inner = ty[1..].trim();
         if inner.starts_with("mut ") {
-            return extract_type_name(&inner[4..]);
+            return extract_all_types(&inner[4..]);
         }
-        return extract_type_name(inner);
+        return extract_all_types(inner);
     }
 
-    // Simple type
-    Some(ty.to_string())
+    // Handle generic types like Vec<T>, Option<T>, HashMap<K, V>, etc.
+    if let Some(start) = ty.find('<') {
+        let base = ty[..start].trim().to_string();
+        types.push(base);
+
+        // Extract inner types from the generic parameters
+        let end = ty.rfind('>').unwrap_or(ty.len());
+        let inner = &ty[start + 1..end];
+
+        // Split by comma to handle multiple type parameters like HashMap<K, V>
+        for part in inner.split(',') {
+            let inner_types = extract_all_types(part.trim());
+            types.extend(inner_types);
+        }
+    } else {
+        // Simple type
+        types.push(ty.to_string());
+    }
+
+    types
+}
+
+/// Extract the base type name from a type string (deprecated, use extract_all_types)
+#[allow(dead_code)]
+fn extract_type_name(ty: &str) -> Option<String> {
+    extract_all_types(ty).into_iter().next()
 }
 
 #[cfg(test)]
@@ -76,6 +107,7 @@ mod tests {
             ],
             methods: vec![],
             external_types: vec![],
+            traits: vec![],
         };
 
         let all_structs = vec![struct_a.clone()];
@@ -99,6 +131,7 @@ mod tests {
             ],
             methods: vec![],
             external_types: vec![],
+            traits: vec![],
         };
 
         let struct_b = StructInfo {
@@ -111,6 +144,7 @@ mod tests {
             ],
             methods: vec![],
             external_types: vec![],
+            traits: vec![],
         };
 
         let all_structs = vec![struct_a.clone(), struct_b];
@@ -135,6 +169,7 @@ mod tests {
             ],
             methods: vec![],
             external_types: vec![],
+            traits: vec![],
         };
 
         let struct_b = StructInfo {
@@ -142,6 +177,7 @@ mod tests {
             fields: vec![],
             methods: vec![],
             external_types: vec![],
+            traits: vec![],
         };
 
         let struct_c = StructInfo {
@@ -149,6 +185,7 @@ mod tests {
             fields: vec![],
             methods: vec![],
             external_types: vec![],
+            traits: vec![],
         };
 
         let all_structs = vec![struct_a.clone(), struct_b, struct_c];

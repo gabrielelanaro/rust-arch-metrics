@@ -19,6 +19,7 @@ pub struct StructInfo {
     pub fields: Vec<FieldInfo>,
     pub methods: Vec<MethodInfo>,
     pub external_types: Vec<String>,
+    pub traits: Vec<String>, // Traits this struct implements
 }
 
 /// Represents the analysis result for a struct

@@ -30,6 +30,7 @@ mod tests {
             fields: vec![],
             methods: vec![],
             external_types: vec![],
+            traits: vec![],
         };
 
         assert_eq!(calculate(&struct_info), 0);
@@ -60,6 +61,7 @@ mod tests {
                 },
             ],
             external_types: vec![],
+            traits: vec![],
         };
 
         assert_eq!(calculate(&struct_info), 5); // 1 + 1 + 3

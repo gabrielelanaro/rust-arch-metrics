@@ -23,9 +23,12 @@ impl<'ast> Visit<'ast> for StructVisitor {
 
         for field in &node.fields {
             if let Some(ident) = &field.ident {
+                // Extract the type tokens properly
+                let ty = &field.ty;
+                let type_str = quote::quote!(#ty).to_string();
                 fields.push(FieldInfo {
                     name: ident.to_string(),
-                    ty: quote::quote!(#field.ty).to_string(),
+                    ty: type_str,
                 });
             }
         }
@@ -35,6 +38,7 @@ impl<'ast> Visit<'ast> for StructVisitor {
             fields,
             methods: Vec::new(),
             external_types: Vec::new(),
+            traits: Vec::new(),
         });
 
         self.current_struct = Some(struct_name);
@@ -43,10 +47,9 @@ impl<'ast> Visit<'ast> for StructVisitor {
     }
 
     fn visit_item_impl(&mut self, node: &'ast ItemImpl) {
-        if let Some((_, _path, _)) = &node.trait_ {
-            // Trait implementation - skip for now
-            return;
-        }
+        let trait_name = node.trait_.as_ref().map(|(_, path, _)| {
+            quote::quote!(#path).to_string()
+        });
 
         if let syn::Type::Path(type_path) = &*node.self_ty {
             if let Some(seg) = type_path.path.segments.last() {
@@ -54,6 +57,12 @@ impl<'ast> Visit<'ast> for StructVisitor {
 
                 // Find the struct in our list
                 if let Some(struct_info) = self.structs.iter_mut().find(|s| s.name == struct_name) {
+                    // If this is a trait impl, record the trait
+                    if let Some(trait_str) = trait_name {
+                        struct_info.traits.push(trait_str);
+                    }
+
+                    // Process methods for both direct impl and trait impl
                     for item in &node.items {
                         if let syn::ImplItem::Fn(method) = item {
                             let method_info = analyze_method(method, struct_info);
